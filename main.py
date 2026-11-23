@@ -21,11 +21,23 @@ LETTER = "A"  # A = coffee
 
 
 def main() -> int:
-    output_dir = os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
+    # Empty env var counts as unset: fall back to /output instead of
+    # crashing on makedirs("") or writing to a relative "entry.txt".
+    output_dir = os.environ.get("MAKEFUN_OUTPUT_DIR") or "/output"
+    output_dir = os.path.abspath(output_dir)
     os.makedirs(output_dir, exist_ok=True)
     entry_path = os.path.join(output_dir, "entry.txt")
     with open(entry_path, "w", encoding="utf-8", newline="") as f:
         f.write(LETTER)
+    # Defensive check: the judged artifact must be exactly one byte.
+    # Read back what we wrote and fail loudly rather than silently
+    # submitting a wrong-length entry.
+    with open(entry_path, "rb") as f:
+        data = f.read()
+    if data != LETTER.encode("utf-8"):
+        raise SystemExit(
+            f"entry.txt must be exactly one byte {LETTER!r}, got {data!r}"
+        )
     sys.stdout.write(LETTER)
     sys.stdout.flush()
     return 0
